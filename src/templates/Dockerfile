@@ -1,0 +1,50 @@
+# Base image
+# Here you can either use the technology that
+# you are using to crete your bot, or some base
+# linux distro like "ubuntu"
+FROM python:3
+
+
+# Install all programs that you will
+# need for your bot to run.
+
+# The unzip program has to be present
+# as it will be used to put your bot
+# files in their appropriate place.
+RUN apt install unzip -y
+
+
+# Install your bot files.
+# In this case we are using /app
+# as the directory to host the bot
+COPY bot.zip /app/bot.zip
+RUN unzip /app/bot.zip  -d /app/
+
+
+# Usually the best place to put your secret key
+# is in the environment variables. This can be
+# done as follows
+# (Make sure you replace this with your own key)
+ENV DISCORD_KEY=skljdfiowekjb20938490238ksndf
+
+
+
+# Install dependancies of your bot
+# The example installs discord, as it
+# should be needed for most bots.
+RUN pip install discord
+
+
+
+# Set your base directory.
+# This is where your bot will operate from.
+# You should probably have this as the same
+# path as where you copied the bot code.
+WORKDIR /app
+
+
+
+# Run the bot
+# You can put any command you want here,
+# as long as it follows the same format.
+CMD ["python3", "main.py"]
