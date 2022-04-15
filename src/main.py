@@ -31,6 +31,7 @@ app_regular.config['UPLOAD_FOLDER'] = "/tmp"
 app_regular.config['MAX_CONTENT_PATH'] = 1000000
 
 
+
 class Index(Resource):
     """ / """
     @staticmethod
@@ -42,6 +43,7 @@ class Index(Resource):
             res = make_response(redirect(f'{BASE_URL}login/?error=not+logged+in"'))
 
         return res
+
 
 
 class Login(Resource):
@@ -69,6 +71,7 @@ class Login(Resource):
         return res
 
 
+
 class ControlPanel(Resource):
     """ /control-panel """
     @staticmethod
@@ -83,6 +86,7 @@ class ControlPanel(Resource):
         return res
 
 
+
 class UploadNewBot(Resource):
     """ /control-panel/new """
     @staticmethod
@@ -95,6 +99,7 @@ class UploadNewBot(Resource):
         res.status_code = 200
         return res
 
+
     @staticmethod
     def post():
         """ Create a new bot """
@@ -103,9 +108,10 @@ class UploadNewBot(Resource):
 
         response, status = api.upload_bot(request)
         if status != 200:
-            return make_response(redirect(f'{BASE_URL}control-panel/new/?error={urllib.quote_plus(response)}"'))
+            return make_response(redirect(f'{BASE_URL}control-panel/new/?error={urllib.quote_plus({response})}"'))
 
         return make_response(redirect(f'{BASE_URL}control-panel"'))
+
 
 
 class BotController(Resource):
@@ -119,21 +125,48 @@ class BotController(Resource):
         # should probably do some formatting in the future
         # TODO: sanitise the shit out of this, and only let it run if its actually an existing bot
         # TODO2: add things like the file structure
-        res = make_response(subprocess.check_output(['podman', 'inspect', botname]))
-        res.content_type = "application/json"
+        # res = make_response(render_template("bot_info_page.html", data=json.loads(subprocess.check_output(['podman', 'inspect', botname]))))
+        # res.content_type = "text/html"
+        # res.status_code = 200
+        # return res
+        # return api.get_bot_info(botname)
+
+        response, status = api.get_bot_info(botname)
+        if status != 200:
+            return make_response(redirect(
+                f'{BASE_URL}control-panel/{botname}/?error={urllib.quote_plus({response})}'))
+
+
+        res = make_response(render_template("bot_info.html", data=response))
+        res.content_type = "text/html"
         res.status_code = 200
         return res
 
+
     @staticmethod
     def post(botname):
-        """ Build and run a bot """
+        """ Depending on the form field pressed, either start or kill a bot"""
         if not api.check_cookie(request.cookies.get('auth')):
             return make_response(redirect(f'{BASE_URL}login/?error=not+logged+in"'))
 
 
-        return api.build_start_bot(botname)
+        # The action field of the form will tell what operation the server
+        # should do.
+        if request.form.get('action') == 'start':
+            response, status = api.build_start_bot(botname)
+        elif request.form.get('action') == 'kill':
+            response, status = api.kill_bot(botname)
+        else:
+            response = "Unsupported action"
+            status = 400
 
 
+        if status != 200:
+            return make_response(redirect(
+                f'{BASE_URL}control-panel/{botname}/?error={urllib.quote_plus({response})}'))
+
+        return make_response(redirect(
+                f'{BASE_URL}control-panel/{botname}/'))
 
 
 

@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset='utf-8'>
+    </head>
+    <body>
+
+        {% if data['State']['Status'] == "Un-built" %}
+
+            <h1> {{ data['Name'] }}: Not yet built </h1>
+            <form action="" method="post">
+                <input type="text" style="display: none;" name="action" value="start">
+                <button type="submit">Build and Start bot</button>
+            </form>
+            <pre>{{ data['tree'] }}</pre>
+
+        {% else %}
+
+            <h1> {{ data['Name'] }}: {{ data['State']['Status'] }} </h1>
+
+            {% if data['State']['Status'] == 'running' %}
+
+                <h3>Started: {{ data['State']['StartedAt'] }}</h3>
+                <form action="" method="post">
+                    <input type="text" style="display: none;" name="action" value="kill">
+                    <button type="submit">Kill bot</button>
+                </form>
+
+            {% else %}
+
+                <li><h3>Exited: {{ data['State']['FinishedAt'] }}</h3></li>
+
+                <form action="" method="post">
+                    <input type="text" style="display: none;" name="action" value="start">
+                    <button type="submit">Start bot</button>
+                </form>
+
+            {% endif %}
+
+
+
+            <pre>{{ data['tree'] }}</pre>
+
+            {% if data['logs'].get('build') %} <h3>Build logs:</h3><pre>{{ data['logs']['build'] }}</pre> {% endif %}
+            {% if data['logs'].get('run') %}   <h3>Run logs:</h3><pre>{{ data['logs']['run'] }}</pre> {% endif %}
+            {% if data['logs'].get('rm') %}    <h3>Remove logs:</h3><pre>{{ data['logs']['rm'] }}</pre> {% endif %}
+            {% if data['logs'].get('kill') %}  <h3>Kill logs:</h3><pre>{{ data['logs']['kill'] }}</pre> {% endif %}
+
+        {% endif %}
+
+
+    </body>
+</html>

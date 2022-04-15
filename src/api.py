@@ -15,6 +15,8 @@ import security
 from secret import user_creds
 
 
+# ================================================ Auth related stuff ==========================================
+
 
 def gen_cookie(username: str) -> str:
     """ Generate and store a cookie """
@@ -69,6 +71,10 @@ def login_if_correct(request) -> tuple[str, int]:
 
 
     return "Username or password does not match any in the database", 403
+
+
+
+# ================================================ Bot related stuff ==========================================
 
 
 def upload_bot(request) -> tuple[str, int]:
@@ -191,7 +197,7 @@ def build_start_bot(bot_name: str) -> tuple[str, int]:
 
 
     # Try build the bot
-    if os.system(f"cd ../bots/{bot_name} && ls > a &&\
+    if os.system(f"cd ../bots/{bot_name} &&\
                   podman build -t {bot_name} .\
                   > build_logs\
                   2>> build_logs") != 0:
@@ -209,3 +215,121 @@ def build_start_bot(bot_name: str) -> tuple[str, int]:
 
 
     return "OK", 200
+
+
+def kill_bot(bot_name: str) -> tuple[str, int]:
+    """ Use the podman kill command to kill a bot """
+
+    for char in bot_name:
+        if char not in string.ascii_letters + string.digits + "-_":
+            return f"Invalid character in bot name: '{char}'", 400
+
+    if len(bot_name) < 2:
+        return "Bot name must be at least 3 characters", 400
+
+    # Make sure the bot exists
+    if not os.path.isdir(f"../bots/{bot_name}"):
+        return "The requested bot does not exist, or has a different name!", 404
+
+
+    # Get information about the bot.
+    # This command will crash if the bot doesn't
+    # exist yet, otherwise return json
+    try:
+        bot_info = json.loads(subprocess.check_output(['podman', 'inspect', bot_name]))
+    except subprocess.CalledProcessError:
+        bot_info = None
+
+
+
+    # If the bot exists
+    # Sometimes instead of none you get some random json that I didn't bother checking out
+    if bot_info is None or bot_info[0].get('State') is None:
+        return "The requested bot does not exist, or has a different name!", 404
+
+
+    # If the bot is running, then kill it before it can be deleted.
+    if bot_info[0].get('State').get('Status') == "running":
+        if os.system(f"podman kill {bot_name}\
+                > ../bots/{bot_name}/kill_logs\
+                2>> ../bots/{bot_name}/kill_logs") != 0:
+            return "An error occurred while trying to kill the bot.\
+                    Check the logfile for more information", 500
+
+
+    return "Killed", 200
+
+
+def get_bot_info(bot_name: str) -> tuple[dict, int]:
+    """ Get information about a bot """
+
+    # Going to a system command so has to be sanitized very well
+    for char in bot_name:
+        if char not in string.ascii_letters + string.digits + "-_":
+            return {'error': "Invalid character in bot name: '{char}'"}, 400
+
+    if len(bot_name) < 2:
+        return {'error': "Bot name must be at least 3 characters"}, 400
+
+    # Make sure the bot exists
+    if not os.path.isdir(f"../bots/{bot_name}"):
+        return {"error":"The requested bot does not exist, or has a different name!"}, 404
+
+
+    # Use podman inspect to get data about the bot
+    try:
+        data: dict = json.loads(subprocess.check_output(['podman', 'inspect', bot_name]))[0]
+    except subprocess.CalledProcessError:
+        return {'error': "An error occurred while getting information about the bot"}, 500
+
+
+    # get filesystem tree for the bot directory
+    try:
+        # Split the tree output by newlines, remove the first line
+        # and put it back together again.
+        # This is needed as the first line of tree is the filename.
+        # (If you find a way to do this with the tree command, let me know! :))
+        data['tree'] = b'\n'.join( subprocess.check_output(
+                        ['tree', f'../bots/{bot_name}/']
+                        ).split(b'\n')[1:]).decode('utf-8')
+
+    except subprocess.CalledProcessError:
+        return {'error': "An error occurred while getting information about the bot"}, 500
+
+
+    # If there is no state variable, then set it and return Un-built
+    state =  data.get("State")
+    if state is None:
+        # Adding name as its needed for the UI and not present in
+        # `data` at this point.
+        data['Name'] = bot_name
+        data['State'] = {'Status': "Un-built"}
+        return data, 200
+
+    # Get data from logfiles
+    logs = {}
+
+    # get build logs
+    if os.path.isfile(f'../bots/{bot_name}/build_logs'):
+        with open(f'../bots/{bot_name}/build_logs', 'r', encoding='utf-8')as infile:
+            logs['build'] = infile.read()
+
+    # get run logs
+    if os.path.isfile(f'../bots/{bot_name}/run_logs'):
+        with open(f'../bots/{bot_name}/run_logs', 'r', encoding='utf-8')as infile:
+            logs['run'] = infile.read()
+
+    # get kill logs
+    if os.path.isfile(f'../bots/{bot_name}/rm_logs'):
+        with open(f'../bots/{bot_name}/rm_logs', 'r', encoding='utf-8')as infile:
+            logs['rm'] = infile.read()
+
+    # get remove logs
+    if os.path.isfile(f'../bots/{bot_name}/kill_logs'):
+        with open(f'../bots/{bot_name}/kill_logs', 'r', encoding='utf-8')as infile:
+            logs['kill'] = infile.read()
+
+    data['logs'] = logs
+
+    return data, 200
+
