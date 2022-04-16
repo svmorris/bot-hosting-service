@@ -1,7 +1,6 @@
 import os
 import json
 import subprocess
-import urllib.parse as urllib
 
 from flask import Flask
 from flask import request
@@ -62,7 +61,7 @@ class Login(Resource):
         cookie, status =  api.login_if_correct(request)
 
         if status != 200:
-            res = make_response(redirect(f'{BASE_URL}login/?error={urllib.quote_plus(cookie)}'))
+            res = make_response(redirect(f'{BASE_URL}login/?error={cookie}'))
             res.content_type = "text/html"
             return res
 
@@ -108,7 +107,7 @@ class UploadNewBot(Resource):
 
         response, status = api.upload_bot(request)
         if status != 200:
-            return make_response(redirect(f'{BASE_URL}control-panel/new/?error={urllib.quote_plus({response})}"'))
+            return make_response(redirect(f'{BASE_URL}control-panel/new/?error={response}"'))
 
         return make_response(redirect(f'{BASE_URL}control-panel"'))
 
@@ -134,7 +133,7 @@ class BotController(Resource):
         response, status = api.get_bot_info(botname)
         if status != 200:
             return make_response(redirect(
-                f'{BASE_URL}control-panel/{botname}/?error={urllib.quote_plus({response})}'))
+                f'{BASE_URL}control-panel/{botname}/?error={response}'))
 
 
         res = make_response(render_template("bot_info.html", data=response))
@@ -163,10 +162,52 @@ class BotController(Resource):
 
         if status != 200:
             return make_response(redirect(
-                f'{BASE_URL}control-panel/{botname}/?error={urllib.quote_plus({response})}'))
+                f'{BASE_URL}control-panel/{botname}/?error={response}'))
 
         return make_response(redirect(
                 f'{BASE_URL}control-panel/{botname}/'))
+
+
+
+class EditBot(Resource):
+    """ /control-panel/<bot_name>/edit """
+    @staticmethod
+    def get(bot_name):
+        """
+            Show an edit page for a bot with
+            a file-upload for the zipfile and a pre-filled
+            out textarea for the Dockerfile
+        """
+        if not api.check_cookie(request.cookies.get('auth')):
+            return make_response(redirect(f'{BASE_URL}login/?error=not+logged+in"'))
+
+        dockerfile, status = api.get_dockerfile(bot_name)
+        if status != 200:
+            return make_response(redirect(
+                f'{BASE_URL}control-panel/{bot_name}/?error={dockerfile}'
+                ))
+
+        return make_response(render_template('edit_bot.html',
+                                              bot_name=bot_name,
+                                              dockerfile=dockerfile))
+
+    @staticmethod
+    def post(bot_name):
+        """
+            Update the dockerfile and (if changed) the
+            zip file associated with the bot
+        """
+        if not api.check_cookie(request.cookies.get('auth')):
+            return make_response(redirect(f'{BASE_URL}login/?error=not+logged+in"'))
+
+        response, status = api.update_bot(request, bot_name)
+        if status != 200:
+            return make_response(redirect(
+                f'{BASE_URL}control-panel/{bot_name}/edit/?error={response}'
+                ))
+
+        return make_response(redirect(
+            f'{BASE_URL}control-panel/{bot_name}/edit/'))
 
 
 
@@ -176,6 +217,9 @@ app_restful.add_resource(Index,
 app_restful.add_resource(Login,
             f'{BASE_URL}login',
             f'{BASE_URL}login/')
+app_restful.add_resource(EditBot,
+            f"{BASE_URL}control-panel/<bot_name>/edit",
+            f"{BASE_URL}control-panel/<bot_name>/edit/",)
 app_restful.add_resource(ControlPanel,
             f'{BASE_URL}control-panel',
             f'{BASE_URL}control-panel/')

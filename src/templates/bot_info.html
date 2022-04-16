@@ -32,7 +32,7 @@
 
                 <form action="" method="post">
                     <input type="text" style="display: none;" name="action" value="start">
-                    <button type="submit">Start bot</button>
+                    <button type="submit">Start (rebuild) bot</button>
                 </form>
 
             {% endif %}
@@ -41,13 +41,14 @@
 
             <pre>{{ data['tree'] }}</pre>
 
-            {% if data['logs'].get('build') %} <h3>Build logs:</h3><pre>{{ data['logs']['build'] }}</pre> {% endif %}
-            {% if data['logs'].get('run') %}   <h3>Run logs:</h3><pre>{{ data['logs']['run'] }}</pre> {% endif %}
-            {% if data['logs'].get('rm') %}    <h3>Remove logs:</h3><pre>{{ data['logs']['rm'] }}</pre> {% endif %}
-            {% if data['logs'].get('kill') %}  <h3>Kill logs:</h3><pre>{{ data['logs']['kill'] }}</pre> {% endif %}
 
         {% endif %}
 
+        {% if data['logs'].get('build') %} <h3>Build logs:</h3><pre>{{ data['logs']['build'] }}</pre> {% endif %}
+        {% if data['logs'].get('run') %}   <h3>Run logs:</h3><pre>{{ data['logs']['run'] }}</pre> {% endif %}
+        {% if data['logs'].get('rm') %}    <h3>Remove logs:</h3><pre>{{ data['logs']['rm'] }}</pre> {% endif %}
+        {% if data['logs'].get('kill') %}  <h3>Kill logs:</h3><pre>{{ data['logs']['kill'] }}</pre> {% endif %}
+        <a href="/control-panel/{{ data['Name'] }}/edit">Edit bot</a>
 
     </body>
 </html>

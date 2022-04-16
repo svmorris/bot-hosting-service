@@ -80,11 +80,8 @@ def login_if_correct(request) -> tuple[str, int]:
 def upload_bot(request) -> tuple[str, int]:
     """ Check if all data is valid, and create a new bot """
     zipfile = request.files.get('file')
-    print('zipfile: ',zipfile , type(zipfile))
     bot_name: str = request.form.get('name')
-    print('bot_name: ',bot_name , type(bot_name))
     dockerfile: str = request.form.get('Dockerfile')
-    print('dockerfile: ',dockerfile , type(dockerfile))
 
     if len(bot_name) < 2:
         return "Bot name must be at least 3 characters", 400
@@ -103,38 +100,21 @@ def upload_bot(request) -> tuple[str, int]:
 
 
 
-    # If the filename is too short then
-    # there was no zipfile uploaded.
-    # I'm setting the variable to None to make
-    # checking more efficient later.
-    if len(zipfile.filename) < 3:
-        zipfile = None
-
-
     # make sure zipfile name is safe
     # (if it exists)
     if zipfile is not None:
+        # IMPORTANT: this can be fooled. Not sure if there is any scope to it,
+        # but if there is then we should change this to a better check.
         if not zipfile.filename[-4:] == ".zip" or zipfile.content_type != 'application/zip':
             return "Uploaded file has to be a zipfile", 400
-
-
-        for char in zipfile.filename:
-            if char not in string.ascii_letters + string.digits + "_-.":
-                return f"Cannot include '{char}' in filename", 400
-
-
-        if ".." in zipfile.filename:
-            return "Cannot include '..' in filename", 400
 
 
     if os.path.exists(f"../bots/{bot_name}"):
         return "A bot by this name already exists", 400
 
 
-
     # Its better to tell the user why it failed
-    # try:
-    if 1:
+    try:
         os.mkdir(f'../bots/{bot_name}')
         os.mkdir(f'../bots/{bot_name}/storage')
 
@@ -142,11 +122,47 @@ def upload_bot(request) -> tuple[str, int]:
             outfile.write(dockerfile)
 
         if zipfile is not None:
-            zipfile.save(f"../bots/{bot_name}/{zipfile.filename}")
+            zipfile.save(f"../bots/{bot_name}/bot.zip")
 
-    # except Exception as err: # pylint: disable=broad-except
-        # return f"Internal server error while saving the bot: {err}", 500
+    except Exception as err: # pylint: disable=broad-except
+        return f"Internal server error while saving the bot: {err}", 500
 
+
+    return "OK", 200
+
+
+def update_bot(request, bot_name: str) -> tuple[str, int]:
+    """
+        Update the dockerfile and (if changed) the
+        zip file associated with the bot
+    """
+    zipfile = request.files.get('file')
+    dockerfile: str = request.form.get('Dockerfile')
+
+    for char in bot_name:
+        if char not in string.ascii_letters + string.digits + "-_":
+            return f"Invalid character in bot name: '{char}'", 400
+
+    if len(bot_name) < 2:
+        return "Bot name must be at least 3 characters", 400
+
+
+    if len(dockerfile) < 10:
+        return "Invalid dockerfile: Unreasonably short", 400
+
+
+    # bot has to already exist to run
+    if not os.path.isdir(f"../bots/{bot_name}"):
+        return "The requested bot does not exist, or has a different name!", 400
+
+
+    with open(f"../bots/{bot_name}/Dockerfile", "w+", encoding='utf-8')as outfile:
+        outfile.write(dockerfile)
+
+
+    print('zipfile: ',zipfile.filename , type(zipfile))
+    if zipfile is not None and len(zipfile.filename) > 3:
+        zipfile.save(f"../bots/{bot_name}/bot.zip")
 
     return "OK", 200
 
@@ -283,29 +299,6 @@ def get_bot_info(bot_name: str) -> tuple[dict, int]:
         return {'error': "An error occurred while getting information about the bot"}, 500
 
 
-    # get filesystem tree for the bot directory
-    try:
-        # Split the tree output by newlines, remove the first line
-        # and put it back together again.
-        # This is needed as the first line of tree is the filename.
-        # (If you find a way to do this with the tree command, let me know! :))
-        data['tree'] = b'\n'.join( subprocess.check_output(
-                        ['tree', f'../bots/{bot_name}/']
-                        ).split(b'\n')[1:]).decode('utf-8')
-
-    except subprocess.CalledProcessError:
-        return {'error': "An error occurred while getting information about the bot"}, 500
-
-
-    # If there is no state variable, then set it and return Un-built
-    state =  data.get("State")
-    if state is None:
-        # Adding name as its needed for the UI and not present in
-        # `data` at this point.
-        data['Name'] = bot_name
-        data['State'] = {'Status': "Un-built"}
-        return data, 200
-
     # Get data from logfiles
     logs = {}
 
@@ -331,5 +324,58 @@ def get_bot_info(bot_name: str) -> tuple[dict, int]:
 
     data['logs'] = logs
 
+
+
+    # get filesystem tree for the bot directory
+    try:
+        # Split the tree output by newlines, remove the first line
+        # and put it back together again.
+        # This is needed as the first line of tree is the filename.
+        # (If you find a way to do this with the tree command, let me know! :))
+        data['tree'] = b'\n'.join( subprocess.check_output(
+                        ['tree', f'../bots/{bot_name}/']
+                        ).split(b'\n')[1:]).decode('utf-8')
+
+    except subprocess.CalledProcessError:
+        return {'error': "An error occurred while getting information about the bot"}, 500
+
+
+
+    # If there is no state variable, then set it and return Un-built
+    state =  data.get("State")
+    if state is None:
+        # Adding name as its needed for the UI and not present in
+        # `data` at this point.
+        data['Name'] = bot_name
+        data['State'] = {'Status': "Un-built"}
+        return data, 200
+
+
     return data, 200
 
+
+def get_dockerfile(bot_name: str) -> tuple[str, int]:
+    """ Return the contents of a dockerfile for a bot (if it exists) """
+
+    # Going to a system command so has to be sanitized very well
+    for char in bot_name:
+        if char not in string.ascii_letters + string.digits + "-_":
+            return "Invalid character in bot name: '{char}'", 400
+
+    if len(bot_name) < 2:
+        return "Bot name must be at least 3 characters", 400
+
+    # Make sure the bot exists
+    if not os.path.isdir(f"../bots/{bot_name}"):
+        return "The requested bot does not exist, or has a different name!", 404
+
+
+    if not os.path.isfile(f"../bots/{bot_name}/Dockerfile"):
+        return "Corrupted bot directory: no dockerfile", 400
+
+
+    # read the dockerfile and return it
+    with open(f"../bots/{bot_name}/Dockerfile", "r", encoding="utf-8")as infile:
+        data = infile.read()
+
+    return data, 200
