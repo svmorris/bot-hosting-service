@@ -9,10 +9,10 @@
 
         <ul>
         {% for bot in bots %}
-            <li><a href="/control-panel/{{ bot }}">{{ bot }}</a></li>
+            <li><a href="{{ bot }}">{{ bot }}</a></li>
         {% endfor %}
         </ul>
 
-        <a href="/control-panel/new">Create a new bot</a>
+        <a href="new">Create a new bot</a>
     </body>
 </html>

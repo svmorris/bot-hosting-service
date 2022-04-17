@@ -25,7 +25,7 @@ app_regular = Flask(__name__)
 app_restful = Api(app_regular)
 
 
-BASE_URL = '/'
+BASE_URL = '/bots/'
 app_regular.config['UPLOAD_FOLDER'] = "/tmp"
 app_regular.config['MAX_CONTENT_PATH'] = 1000000
 
@@ -37,9 +37,9 @@ class Index(Resource):
     def get():
         """ If cookies are invalid then redirect to login """
         if api.check_cookie(request.cookies.get('auth')):
-            res = make_response(redirect(f'{BASE_URL}control-panel'))
+            res = make_response(redirect(f'{BASE_URL}control-panel/'))
         else:
-            res = make_response(redirect(f'{BASE_URL}login/?error=not+logged+in"'))
+            res = make_response(redirect(f'{BASE_URL}login/?error=not+logged+in'))
 
         return res
 
@@ -77,7 +77,7 @@ class ControlPanel(Resource):
     def get():
         """ Show the main control panel page """
         if not api.check_cookie(request.cookies.get('auth')):
-            return make_response(redirect(f'{BASE_URL}login/?error=not+logged+in"'))
+            return make_response(redirect(f'{BASE_URL}login/?error=not+logged+in'))
 
         # should probably do some formatting in the future
         res = make_response(render_template('controlpanel.html', bots=os.listdir('../bots/')))
@@ -92,7 +92,7 @@ class UploadNewBot(Resource):
     def get():
         """ Show the bot creation page """
         if not api.check_cookie(request.cookies.get('auth')):
-            return make_response(redirect(f'{BASE_URL}login/?error=not+logged+in"'))
+            return make_response(redirect(f'{BASE_URL}login/?error=not+logged+in'))
 
         res = make_response(render_template("addnew.html"))
         res.status_code = 200
@@ -107,9 +107,9 @@ class UploadNewBot(Resource):
 
         response, status = api.upload_bot(request)
         if status != 200:
-            return make_response(redirect(f'{BASE_URL}control-panel/new/?error={response}"'))
+            return make_response(redirect(f'{BASE_URL}control-panel/new/?error={response}'))
 
-        return make_response(redirect(f'{BASE_URL}control-panel"'))
+        return make_response(redirect(f'{BASE_URL}control-panel/'))
 
 
 
@@ -119,7 +119,7 @@ class BotController(Resource):
     def get(botname):
         """ Show information about a bot"""
         if not api.check_cookie(request.cookies.get('auth')):
-            return make_response(redirect(f'{BASE_URL}login/?error=not+logged+in"'))
+            return make_response(redirect(f'{BASE_URL}login/?error=not+logged+in'))
 
         # should probably do some formatting in the future
         # TODO: sanitise the shit out of this, and only let it run if its actually an existing bot
@@ -133,7 +133,7 @@ class BotController(Resource):
         response, status = api.get_bot_info(botname)
         if status != 200:
             return make_response(redirect(
-                f'{BASE_URL}control-panel/{botname}/?error={response}'))
+                f'{BASE_URL}control-panel/?error={response["error"]}'))
 
 
         res = make_response(render_template("bot_info.html", data=response))
@@ -146,7 +146,7 @@ class BotController(Resource):
     def post(botname):
         """ Depending on the form field pressed, either start or kill a bot"""
         if not api.check_cookie(request.cookies.get('auth')):
-            return make_response(redirect(f'{BASE_URL}login/?error=not+logged+in"'))
+            return make_response(redirect(f'{BASE_URL}login/?error=not+logged+in'))
 
 
         # The action field of the form will tell what operation the server
@@ -179,7 +179,7 @@ class EditBot(Resource):
             out textarea for the Dockerfile
         """
         if not api.check_cookie(request.cookies.get('auth')):
-            return make_response(redirect(f'{BASE_URL}login/?error=not+logged+in"'))
+            return make_response(redirect(f'{BASE_URL}login/?error=not+logged+in'))
 
         dockerfile, status = api.get_dockerfile(bot_name)
         if status != 200:
@@ -198,7 +198,7 @@ class EditBot(Resource):
             zip file associated with the bot
         """
         if not api.check_cookie(request.cookies.get('auth')):
-            return make_response(redirect(f'{BASE_URL}login/?error=not+logged+in"'))
+            return make_response(redirect(f'{BASE_URL}login/?error=not+logged+in'))
 
         response, status = api.update_bot(request, bot_name)
         if status != 200:
@@ -215,19 +215,14 @@ class EditBot(Resource):
 app_restful.add_resource(Index,
             f'{BASE_URL}')
 app_restful.add_resource(Login,
-            f'{BASE_URL}login',
             f'{BASE_URL}login/')
 app_restful.add_resource(EditBot,
-            f"{BASE_URL}control-panel/<bot_name>/edit",
             f"{BASE_URL}control-panel/<bot_name>/edit/",)
 app_restful.add_resource(ControlPanel,
-            f'{BASE_URL}control-panel',
             f'{BASE_URL}control-panel/')
 app_restful.add_resource(UploadNewBot,
-            f'{BASE_URL}control-panel/new',
             f'{BASE_URL}control-panel/new/')
 app_restful.add_resource(BotController,
-            f'{BASE_URL}control-panel/<botname>',
             f'{BASE_URL}control-panel/<botname>/')
 
 

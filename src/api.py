@@ -102,7 +102,7 @@ def upload_bot(request) -> tuple[str, int]:
 
     # make sure zipfile name is safe
     # (if it exists)
-    if zipfile is not None:
+    if zipfile is not None and len(zipfile.filename) > 3:
         # IMPORTANT: this can be fooled. Not sure if there is any scope to it,
         # but if there is then we should change this to a better check.
         if not zipfile.filename[-4:] == ".zip" or zipfile.content_type != 'application/zip':
@@ -121,7 +121,7 @@ def upload_bot(request) -> tuple[str, int]:
         with open(f"../bots/{bot_name}/Dockerfile", "w", encoding="utf-8") as outfile:
             outfile.write(dockerfile)
 
-        if zipfile is not None:
+        if zipfile is not None and len(zipfile.filename) > 3:
             zipfile.save(f"../bots/{bot_name}/bot.zip")
 
     except Exception as err: # pylint: disable=broad-except
@@ -196,6 +196,18 @@ def build_start_bot(bot_name: str) -> tuple[str, int]:
         bot_info = None
 
 
+    # Delete old logs
+    if os.path.isfile(f"../bots/{bot_name}/build_logs"):
+        os.remove(f"../bots/{bot_name}/build_logs")
+    if os.path.isfile(f"../bots/{bot_name}/run_logs"):
+        os.remove(f"../bots/{bot_name}/run_logs")
+    if os.path.isfile(f"../bots/{bot_name}/rm_logs"):
+        os.remove(f"../bots/{bot_name}/rm_logs")
+    if os.path.isfile(f"../bots/{bot_name}/kill_logs"):
+        os.remove(f"../bots/{bot_name}/kill_logs")
+
+
+
     # If the bot exists
     # Sometimes instead of none you get some random json that I didn't bother checking out
     if bot_info is not None and bot_info[0].get('State'):
@@ -223,9 +235,10 @@ def build_start_bot(bot_name: str) -> tuple[str, int]:
 
     # Try run the bot
     if os.system(f"cd ../bots/{bot_name} &&\
-                  podman run --name {bot_name} -v $PWD/storage/:/app/storage -d {bot_name}\
+                  podman run --name {bot_name} -v $PWD/storage/:/app/storage -d {bot_name} &&\
+                  podman logs -f {bot_name}\
                   > run_logs\
-                  2>> run_logs") != 0:
+                  2>> run_logs &") != 0:
         return "An error occurred while trying to run the bot.\
                 Check the logfile for more information.", 500
 

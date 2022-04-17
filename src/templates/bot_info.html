@@ -2,6 +2,7 @@
 <html>
     <head>
         <meta charset='utf-8'>
+        <meta http-equiv="refresh" content="2">
     </head>
     <body>
 
@@ -48,7 +49,7 @@
         {% if data['logs'].get('run') %}   <h3>Run logs:</h3><pre>{{ data['logs']['run'] }}</pre> {% endif %}
         {% if data['logs'].get('rm') %}    <h3>Remove logs:</h3><pre>{{ data['logs']['rm'] }}</pre> {% endif %}
         {% if data['logs'].get('kill') %}  <h3>Kill logs:</h3><pre>{{ data['logs']['kill'] }}</pre> {% endif %}
-        <a href="/control-panel/{{ data['Name'] }}/edit">Edit bot</a>
+        <a href="./edit">Edit bot</a>
 
     </body>
 </html>
