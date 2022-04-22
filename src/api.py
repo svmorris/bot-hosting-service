@@ -309,7 +309,10 @@ def get_bot_info(bot_name: str) -> tuple[dict, int]:
     try:
         data: dict = json.loads(subprocess.check_output(['podman', 'inspect', bot_name]))[0]
     except subprocess.CalledProcessError:
-        return {'error': "An error occurred while getting information about the bot"}, 500
+        # If this podman command fails then the bot has never been built before.
+        # In this case we can just set the state to None. We add other data
+        # that can be gathered about the bot lower down, then return.
+        data = {'State': None}
 
 
     # Get data from logfiles
@@ -354,7 +357,8 @@ def get_bot_info(bot_name: str) -> tuple[dict, int]:
 
 
 
-    # If there is no state variable, then set it and return Un-built
+    # State will either be none if the bot has been removed or if the
+    # podman command crashed above and we manually set it to None
     state =  data.get("State")
     if state is None:
         # Adding name as its needed for the UI and not present in
